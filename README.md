@@ -56,11 +56,20 @@ The setup process will:
 
 ## ⚠️ Important Note
 
-**Steam UI Branch Display**: When using S1 Loader to manage your branches, the branch shown in Steam's UI may not always reflect the actual active branch. This is because Steam's UI updates independently of our branch switching mechanism. To ensure you're running the correct branch:
+**Steam UI Branch Display**: When using S1 Loader to manage your branches, the branch shown in Steam's UI may not always reflect the actual active branch. This is because:
+
+1. S1 Loader switches branches by swapping the `appmanifest_<AppID>.acf` files
+2. While this swap is atomic and immediate, Steam's UI doesn't automatically refresh its branch display
+3. Steam's UI may continue showing the previous branch until Steam is restarted or the UI is refreshed
+
+This behavior is intentional and beneficial - it allows S1 Loader to manage branches without Steam interfering, while maintaining Steam's ability to update each branch independently.
+
+To ensure you're running the correct branch:
 
 1. Always launch Schedule I through S1 Loader
 2. Use the S1 Loader's status display to confirm which branch is active
 3. Do not rely on Steam's UI branch indicator for branch verification
+4. If you need to verify the actual branch, check the manifest file in your Steam installation directory
 
 ## 🛠️ Developer Workflow with Conditional Compilation
 

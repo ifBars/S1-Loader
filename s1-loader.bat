@@ -186,7 +186,10 @@ echo.
 echo Please enter the name of an alternate branch:
 echo (This should match the branch name in Steam, e.g., 'beta', 'alternate', etc.)
 echo.
-set /p BRANCH2="Alternate branch name: "
+set DEFAULT_BRANCH=alternate
+set /p BRANCH2="Alternate branch name (default: %DEFAULT_BRANCH%, press Enter to use default): "
+
+if "!BRANCH2!"=="" set BRANCH2=!DEFAULT_BRANCH!
 
 if "!BRANCH2!"=="" (
     echo ERROR: Branch name cannot be empty.
@@ -875,18 +878,20 @@ goto BACKUP_MANAGEMENT
 :: ========================================
 
 :FIND_STEAM_PATH
-:: Try common Steam installation locations
+:: First, find the main Steam installation directory
 set STEAM_INSTALL_PATH=
 for %%d in ("C:\Program Files (x86)\Steam" "C:\Program Files\Steam" "D:\Steam" "E:\Steam") do (
     if exist "%%~d\Steam.exe" (
         set STEAM_INSTALL_PATH=%%~d
-        goto :FIND_LIBRARIES
+        goto :PARSE_LIBRARY_VDF
     )
 )
 
 :: Try registry lookup for Steam installation
 for /f "tokens=2*" %%a in ('reg query "HKCU\Software\Valve\Steam" /v "SteamPath" 2^>nul') do (
     set STEAM_INSTALL_PATH=%%b
+    :: Convert forward slashes to backslashes
+    set STEAM_INSTALL_PATH=!STEAM_INSTALL_PATH:/=\!
 )
 
 if "%STEAM_INSTALL_PATH%"=="" (
@@ -895,12 +900,68 @@ if "%STEAM_INSTALL_PATH%"=="" (
     goto :eof
 )
 
-:FIND_LIBRARIES
+:PARSE_LIBRARY_VDF
 echo Steam installation found at: %STEAM_INSTALL_PATH%
 echo.
-echo Detecting Steam libraries...
 
-:: Start with the main Steam installation
+set VDF_FILE=!STEAM_INSTALL_PATH!\config\libraryfolders.vdf
+
+if not exist "!VDF_FILE!" (
+    echo ERROR: libraryfolders.vdf not found at: !VDF_FILE!
+    echo Falling back to manual detection...
+    goto :MANUAL_LIBRARY_DETECTION
+)
+
+echo Parsing Steam library configuration...
+
+:: Initialize library counter
+set LIBRARY_COUNT=0
+
+:: Parse the VDF file to extract library paths
+call :PARSE_VDF_LIBRARIES "!VDF_FILE!"
+
+:: Check if we found any libraries
+if %LIBRARY_COUNT%==0 (
+    echo WARNING: No libraries found in VDF file. Falling back to manual detection...
+    goto :MANUAL_LIBRARY_DETECTION
+)
+
+:: Show found libraries and let user choose
+if %LIBRARY_COUNT%==1 (
+    echo Found 1 Steam library: !LIBRARY_1!
+    set STEAM_PATH=!LIBRARY_1!
+    goto :eof
+)
+
+:: Multiple libraries found - let user choose
+echo Found %LIBRARY_COUNT% Steam libraries:
+echo.
+for /l %%i in (1,1,%LIBRARY_COUNT%) do (
+    call echo [%%i] %%LIBRARY_%%i%%
+)
+echo [%LIBRARY_COUNT%+1] Enter custom path manually
+echo.
+set /p LIB_CHOICE="Select library to use (1-%LIBRARY_COUNT%+1): "
+
+:: Validate choice
+if not defined LIB_CHOICE goto :INVALID_CHOICE
+if !LIB_CHOICE!==%LIBRARY_COUNT%+1 goto :MANUAL_PATH_ENTRY
+if !LIB_CHOICE! LSS 1 goto :INVALID_CHOICE
+if !LIB_CHOICE! GTR %LIBRARY_COUNT% goto :INVALID_CHOICE
+
+call set STEAM_PATH=%%LIBRARY_%LIB_CHOICE%%%
+echo.
+echo Selected library: %STEAM_PATH%
+goto :eof
+
+:INVALID_CHOICE
+echo Invalid choice. Using first library.
+set STEAM_PATH=%LIBRARY_1%
+goto :eof
+
+:MANUAL_LIBRARY_DETECTION
+:: Fallback to the original manual detection method
+echo Falling back to manual Steam library detection...
 set LIBRARY_COUNT=1
 set LIBRARY_1=%STEAM_INSTALL_PATH%
 
@@ -923,48 +984,179 @@ for %%d in (C D E F G H) do (
     )
 )
 
-:: Show found libraries
+:: Continue with the same logic as before for manual detection
+goto :CHOOSE_LIBRARY
+
+:CHOOSE_LIBRARY
 if %LIBRARY_COUNT%==1 (
     echo Found 1 Steam library: !LIBRARY_1!
     set STEAM_PATH=!LIBRARY_1!
     goto :eof
 )
 
-:: Multiple libraries found - let user choose
+set /a MANUAL_OPTION=%LIBRARY_COUNT%+1
 echo Found %LIBRARY_COUNT% Steam libraries:
 echo.
 for /l %%i in (1,1,%LIBRARY_COUNT%) do (
     call echo [%%i] %%LIBRARY_%%i%%
 )
+echo [!MANUAL_OPTION!] Enter custom path manually
 echo.
-set /p LIB_CHOICE="Select library to use (1-%LIBRARY_COUNT%): "
+set /p LIB_CHOICE="Select library to use (1-!MANUAL_OPTION!): "
 
-:: Validate choice
 if not defined LIB_CHOICE goto :INVALID_CHOICE
-if %LIB_CHOICE% LSS 1 goto :INVALID_CHOICE
-if %LIB_CHOICE% GTR %LIBRARY_COUNT% goto :INVALID_CHOICE
+if !LIB_CHOICE!==!MANUAL_OPTION! goto :MANUAL_PATH_ENTRY
+if !LIB_CHOICE! LSS 1 goto :INVALID_CHOICE
+if !LIB_CHOICE! GTR %LIBRARY_COUNT% goto :INVALID_CHOICE
 
-:: Set selected library
 call set STEAM_PATH=%%LIBRARY_%LIB_CHOICE%%%
 echo.
 echo Selected library: %STEAM_PATH%
 goto :eof
 
-:INVALID_CHOICE
-echo Invalid choice. Using first library.
-set STEAM_PATH=%LIBRARY_1%
+:MANUAL_PATH_ENTRY
+echo.
+set /p MANUAL_PATH="Enter your Steam installation path (e.g. C:\Program Files (x86)\Steam): "
+if not "!MANUAL_PATH!"=="" (
+    if exist "!MANUAL_PATH!\steamapps\common" (
+        set STEAM_PATH=!MANUAL_PATH!
+        echo.
+        echo Selected library: %STEAM_PATH%
+    ) else (
+        echo WARNING: Invalid Steam path: !MANUAL_PATH!
+        echo Path must contain a steamapps\common folder.
+        echo.
+        goto :CHOOSE_LIBRARY
+    )
+) else (
+    goto :CHOOSE_LIBRARY
+)
 goto :eof
 
-:ADD_LIBRARY
+:PARSE_VDF_LIBRARIES
+set VDF_FILE=%~1
+set SECTION_DEPTH=0
+set IN_LIBRARY_SECTION=0
+set CURRENT_SECTION=
+
+:: First add the default Program Files (x86) path if it exists
+set DEFAULT_STEAM_PATH=C:\Program Files (x86)\Steam
+if exist "!DEFAULT_STEAM_PATH!\steamapps\common" (
+    call :ADD_LIBRARY_FROM_VDF "!DEFAULT_STEAM_PATH!"
+)
+
+:: Read the VDF file line by line
+for /f "usebackq tokens=*" %%a in ("%VDF_FILE%") do (
+    set LINE=%%a
+    call :PROCESS_VDF_LINE "!LINE!"
+)
+
+:: If no libraries found, prompt for manual entry
+if %LIBRARY_COUNT%==0 (
+    echo No Steam libraries found automatically.
+    echo.
+    set /p MANUAL_PATH="Enter your Steam installation path manually (e.g. C:\Program Files (x86)\Steam): "
+    if not "!MANUAL_PATH!"=="" (
+        if exist "!MANUAL_PATH!\steamapps\common" (
+            call :ADD_LIBRARY_FROM_VDF "!MANUAL_PATH!"
+        ) else (
+            echo WARNING: Invalid Steam path: !MANUAL_PATH!
+            echo Path must contain a steamapps\common folder.
+        )
+    )
+)
+goto :eof
+
+:PROCESS_VDF_LINE
+set LINE=%~1
+
+:: Remove leading/trailing whitespace and tabs
+for /f "tokens=* delims= 	" %%a in ("!LINE!") do set LINE=%%a
+if "!LINE!"=="" goto :eof
+
+:: Track section depth with braces
+echo !LINE! | findstr /C:"{" >nul
+if !errorlevel!==0 (
+    set /a SECTION_DEPTH+=1
+    goto :eof
+)
+
+echo !LINE! | findstr /C:"}" >nul
+if !errorlevel!==0 (
+    set /a SECTION_DEPTH-=1
+    if !SECTION_DEPTH!==0 set IN_LIBRARY_SECTION=0
+    goto :eof
+)
+
+:: Check for libraryfolders section start
+echo !LINE! | findstr /C:"libraryfolders" >nul
+if !errorlevel!==0 (
+    set IN_LIBRARY_SECTION=1
+    goto :eof
+)
+
+:: If we're in the libraryfolders section at depth 1, look for numbered sections
+if !IN_LIBRARY_SECTION!==1 if !SECTION_DEPTH!==1 (
+    :: Check if line starts with a quoted number
+    for /f "tokens=1 delims=	 " %%a in ("!LINE!") do (
+        set SECTION_NAME=%%a
+        :: Remove quotes
+        set SECTION_NAME=!SECTION_NAME:"=!
+        
+        :: Check if it's a number
+        echo !SECTION_NAME!|findstr /r "^[0-9][0-9]*$" >nul
+        if !errorlevel!==0 (
+            set CURRENT_SECTION=!SECTION_NAME!
+        )
+    )
+)
+
+:: If we're in the libraryfolders section at depth 2, look for path key
+if !IN_LIBRARY_SECTION!==1 if !SECTION_DEPTH!==2 (
+    :: Extract key name (before the first tab)
+    for /f "tokens=1 delims=	" %%a in ("!LINE!") do set KEY=%%a
+    
+    :: Remove quotes from key
+    set KEY=!KEY:"=!
+    
+    :: If this is a path key, extract the path
+    if /i "!KEY!"=="path" (
+        :: Extract the entire line after "path"
+        set "PATH_LINE=!LINE!"
+        :: Remove everything before and including the first tab
+        for /f "tokens=1* delims=	" %%a in ("!PATH_LINE!") do set PATH_LINE=%%b
+        :: Remove quotes and handle backslashes
+        set "PATH_LINE=!PATH_LINE:"=!"
+        set "PATH_LINE=!PATH_LINE:\\=\!"
+        
+        :: Add this library to our list if section is a number
+        if defined CURRENT_SECTION (
+            call :ADD_LIBRARY_FROM_VDF "!PATH_LINE!"
+        )
+    )
+)
+goto :eof
+
+:ADD_LIBRARY_FROM_VDF
 set "NEW_PATH=%~1"
+
+:: Validate that this path exists and has a steamapps folder
+if not exist "!NEW_PATH!\steamapps\common" (
+    goto :eof
+)
+
 :: Check if this library is already in our list
 for /l %%i in (1,1,%LIBRARY_COUNT%) do (
     call set EXISTING_LIB=%%LIBRARY_%%i%%
-    if /i "!EXISTING_LIB!"=="!NEW_PATH!" goto :eof
+    if /i "!EXISTING_LIB!"=="!NEW_PATH!" (
+        goto :eof
+    )
 )
+
 :: Add new library
 set /a LIBRARY_COUNT+=1
-call set LIBRARY_%LIBRARY_COUNT%=!NEW_PATH!
+set "LIBRARY_%LIBRARY_COUNT%=!NEW_PATH!"
+echo Found library: !NEW_PATH!
 goto :eof
 
 :LOAD_CONFIG

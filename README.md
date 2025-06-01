@@ -39,7 +39,7 @@ The Schedule I Loader uses a combination of Windows directory junctions and Stea
 ### Prerequisites
 - Windows 10/11
 - Schedule I installed via Steam
-- At least 2x the game's disk space for dual installation
+- At least 2x the game's disk space for dual installation (3x if you keep a backup)
 
 ### Initial Setup
 1. **Download the Script**: Place `s1-loader.bat` in a dedicated folder
@@ -151,7 +151,7 @@ If something goes wrong, the tool provides several recovery mechanisms:
 
 ### System Requirements
 - **OS**: Windows 10/11
-- **Disk Space**: 2x game size (for dual installation)
+- **Disk Space**: 2x game size for dual installation (3x if you keep a backup)
 
 ### Software Requirements
 - **Steam**: Latest version

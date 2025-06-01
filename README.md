@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-The **S1 Loader** is a batch script tool designed to manage dual installations of **Schedule I** across both **IL2CPP** and **Mono** Unity backend branches. This tool enables developers and modders to seamlessly switch between different game versions while maintaining full Steam integration and update capabilities.
+**S1 Loader** is a batch script tool designed to manage dual installations of **Schedule I** across both **IL2CPP** and **Mono** Unity backend branches. This tool enables developers and modders to seamlessly switch between different game versions while maintaining full Steam integration and update capabilities.
 
 Unlike traditional approaches that require manual file copying, with little to no Steam integration, this tool uses advanced directory junction techniques and manifest swapping to provide a integrated development environment for Schedule I modding and testing.
 

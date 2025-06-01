@@ -54,6 +54,14 @@ The setup process will:
 - Guide you through Steam branch switching
 - Verify the complete setup
 
+## ⚠️ Important Note
+
+**Steam UI Branch Display**: When using S1 Loader to manage your branches, the branch shown in Steam's UI may not always reflect the actual active branch. This is because Steam's UI updates independently of our branch switching mechanism. To ensure you're running the correct branch:
+
+1. Always launch Schedule I through S1 Loader
+2. Use the S1 Loader's status display to confirm which branch is active
+3. Do not rely on Steam's UI branch indicator for branch verification
+
 ## 🛠️ Developer Workflow with Conditional Compilation
 
 The Schedule I Loader can integrate seamlessly with Visual Studio and MSBuild for mod development. Use conditional compilation to build different versions of your mods to each branch folder:

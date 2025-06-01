@@ -83,13 +83,13 @@ Add these PropertyGroups to your `.csproj` file (replace the ModsDir paths with 
 <PropertyGroup Condition="'$(Configuration)' == 'Il2cpp'">
     <DefineConstants>$(DefineConstants);IL2CPP</DefineConstants>
     <AssemblyName>YourMod_Il2CPP</AssemblyName>
-    <ModsDir>D:\SteamLibrary\steamapps\common\Schedule I_il2cpp\Mods</ModsDir>
+    <ModsDir>D:\SteamLibrary\steamapps\common\Schedule I_public\Mods</ModsDir>
 </PropertyGroup>
 
 <PropertyGroup Condition="'$(Configuration)' == 'Mono'">
     <DefineConstants>$(DefineConstants);MONO</DefineConstants>
     <AssemblyName>YourMod_Mono</AssemblyName>
-    <ModsDir>D:\SteamLibrary\steamapps\common\Schedule I_mono\Mods</ModsDir>
+    <ModsDir>D:\SteamLibrary\steamapps\common\Schedule I_alternate\Mods</ModsDir>
 </PropertyGroup>
 
 <Target Name="PostBuild" AfterTargets="PostBuildEvent">

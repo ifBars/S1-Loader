@@ -30,7 +30,7 @@ The Schedule I Loader uses a combination of Windows directory junctions and Stea
 
 ### Steam Integration
 - Steam tracks installations via game folders and manifest files (`appmanifest_<ID>.acf`)
-- The tool swaps these components atomically to switch active branches
+- The tool swaps these components atomically to switch active branches (won't see a situation where, for example, the directory points to the IL2CPP branch but has the Mono manifest, or vice versa)
 - Each branch maintains its own update state and Steam integration
 - No loss of achievements, cloud saves, or Steam features
 

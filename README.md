@@ -69,7 +69,7 @@ To ensure you're running the correct branch:
 1. Always launch Schedule I through S1 Loader
 2. Use the S1 Loader's status display to confirm which branch is active
 3. Do not rely on Steam's UI branch indicator for branch verification
-4. If you need to verify the actual branch, check the manifest file in your Steam installation directory
+4. If you need to verify the actual branch, check the `appmanifest_3164500.acf` manifest file in your Steam installation directory
 
 ## 🛠️ Developer Workflow with Conditional Compilation
 
